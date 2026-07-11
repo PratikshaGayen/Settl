@@ -67,7 +67,7 @@ Secondary relevance: **Track 2 — SME Trade Finance**, through milestone-gated 
 
 ## 7. Code repository
 
-- **GitHub:** _[paste public repo URL]_
+- **GitHub:** https://github.com/PratikshaGayen/Settl
 - **Setup + Circle integration docs:** [`README.md`](README.md), [`docs/circle-integration.md`](docs/circle-integration.md)
 - **Full architecture walkthrough:** [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md)
 
@@ -75,7 +75,7 @@ Secondary relevance: **Track 2 — SME Trade Finance**, through milestone-gated 
 
 ## 8. Demo application URL
 
-_[paste deployed URL — Vercel + Neon Postgres]_
+**https://settl-two.vercel.app/** (Vercel + Neon Postgres)
 
 Demo accounts are seeded (Maya Reyes / freelancer, Northwind / client); sign in via the role selector.
 
@@ -95,6 +95,6 @@ Full, per-product feedback (why chosen · what worked · what to improve · reco
 - [x] Circle products selected (USDC, Wallets)
 - [x] Functional MVP (frontend + backend) + architecture diagram
 - [ ] Video demonstration recorded + linked
-- [ ] GitHub repo pushed (public) + linked
-- [ ] Demo application URL deployed + linked
+- [x] GitHub repo pushed (public) + linked
+- [x] Demo application URL deployed + linked (https://settl-two.vercel.app/)
 - [x] Circle Product Feedback section
