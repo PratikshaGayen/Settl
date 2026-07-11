@@ -1,6 +1,6 @@
 // Settl — Data Model
-// Local dev uses SQLite because no Postgres service is available in this workspace.
-// The shape mirrors docs/data-model.md so the app can move to Postgres with minimal churn.
+// Postgres (Neon) in production; the same connection string works for local dev.
+// The shape mirrors docs/data-model.md.
 
 generator client {
   provider = "prisma-client"
@@ -8,8 +8,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum PartyRole {
