@@ -1,0 +1,159 @@
+// Settl — Data Model
+// Local dev uses SQLite because no Postgres service is available in this workspace.
+// The shape mirrors docs/data-model.md so the app can move to Postgres with minimal churn.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum PartyRole {
+  FREELANCER
+  CLIENT
+}
+
+enum Currency {
+  USD
+  PHP
+}
+
+enum TimeoutDefault {
+  AUTO_RELEASE
+  AUTO_REFUND
+}
+
+enum InvoiceStatus {
+  DRAFT
+  AWAITING_PAYMENT
+  FUNDED
+  PARTIALLY_RELEASED
+  COMPLETED
+  EXPIRED
+  CANCELLED
+  REFUNDED
+}
+
+enum MilestoneStatus {
+  LOCKED
+  AWAITING_APPROVAL
+  RELEASED
+  REFUNDED
+  EXPIRED_RELEASED
+}
+
+enum TransactionType {
+  FUND
+  RELEASE
+  CONVERT
+  CASHOUT
+  REFUND
+}
+
+model Party {
+  id              String    @id @default(uuid())
+  role            PartyRole
+  displayName     String
+  email           String?   @unique
+  walletAddress   String?   @unique
+  circleWalletId  String?   @unique // Circle developer-controlled wallet id (provisioned on ARC-TESTNET)
+  receiveCurrency Currency  @default(PHP)
+  balanceMinor    BigInt    @default(0)
+  gcashHandle     String?
+  createdAt       DateTime  @default(now())
+
+  payeeInvoices Invoice[] @relation("Payee")
+  payerInvoices Invoice[] @relation("Payer")
+
+  @@index([role])
+  @@map("parties")
+}
+
+model Invoice {
+  id                String         @id @default(uuid())
+  payeeId           String
+  clientName        String
+  clientEmail       String
+  payerId           String?
+  amountMinor       BigInt
+  billingCurrency   Currency       @default(USD)
+  receiveCurrency   Currency       @default(PHP)
+  escrow            Boolean        @default(false)
+  timeoutDays       Int            @default(7)
+  timeoutDefault    TimeoutDefault @default(AUTO_RELEASE)
+  status            InvoiceStatus  @default(AWAITING_PAYMENT)
+  payToken          String?        @unique
+  contractInvoiceId String?
+  fxQuoteId         String?
+  createdAt         DateTime       @default(now())
+  fundedAt          DateTime?
+
+  payee        Party         @relation("Payee", fields: [payeeId], references: [id])
+  payer        Party?        @relation("Payer", fields: [payerId], references: [id])
+  milestones   Milestone[]
+  transactions Transaction[]
+  fxQuote      FXQuote?      @relation(fields: [fxQuoteId], references: [id])
+
+  @@index([payeeId])
+  @@index([payerId])
+  @@index([status])
+  @@map("invoices")
+}
+
+model Milestone {
+  id            String          @id @default(uuid())
+  invoiceId     String
+  idx           Int
+  label         String
+  amountMinor   BigInt
+  status        MilestoneStatus @default(LOCKED)
+  releaseTxHash String?
+  releasedAt    DateTime?
+  deliveredAt   DateTime?
+
+  invoice      Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@unique([invoiceId, idx])
+  @@index([invoiceId, status])
+  @@map("milestones")
+}
+
+model Transaction {
+  id          String          @id @default(uuid())
+  invoiceId   String
+  milestoneId String?
+  type        TransactionType
+  txHash      String?
+  amountMinor BigInt
+  currency    Currency
+  fxRate      Float?
+  externalRef String?
+  createdAt   DateTime        @default(now())
+
+  invoice   Invoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  milestone Milestone? @relation(fields: [milestoneId], references: [id])
+
+  @@index([invoiceId, type])
+  @@index([milestoneId])
+  @@map("transactions")
+}
+
+model FXQuote {
+  id           String    @id @default(uuid())
+  fromCurrency Currency  @default(USD)
+  toCurrency   Currency  @default(PHP)
+  rate         Float
+  source       String
+  createdAt    DateTime  @default(now())
+  validUntil   DateTime
+
+  invoices Invoice[]
+
+  @@index([validUntil])
+  @@map("fx_quotes")
+}

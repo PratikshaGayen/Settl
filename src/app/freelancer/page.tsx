@@ -1,0 +1,122 @@
+import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/session";
+import { formatMoney } from "@/lib/money";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+
+function StatusBadge({ status }: { status: string }) {
+  const color =
+    status === "AWAITING_PAYMENT"
+      ? "bg-amber-100 text-amber-800"
+      : status === "FUNDED"
+        ? "bg-blue-100 text-blue-800"
+        : status === "PARTIALLY_RELEASED"
+          ? "bg-indigo-100 text-indigo-800"
+          : status === "COMPLETED"
+            ? "bg-emerald-100 text-emerald-800"
+            : status === "EXPIRED" || status === "CANCELLED"
+              ? "bg-gray-100 text-gray-600"
+              : "bg-red-100 text-red-800";
+
+  const label = status.replace(/_/g, " ");
+
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${color}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+export default async function FreelancerDashboard() {
+  const freelancerId = await getSession();
+
+  if (!freelancerId) {
+    redirect("/");
+  }
+
+  const party = await prisma.party.findUnique({ where: { id: freelancerId } });
+
+  if (!party || party.role !== "FREELANCER") {
+    redirect("/");
+  }
+
+  const invoices = await prisma.invoice.findMany({
+    where: { payeeId: freelancerId },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const balanceDisplay = formatMoney(party.balanceMinor, "PHP");
+  const hasBalance = party.balanceMinor > 0n;
+
+  return (
+    <div className="flex min-h-screen flex-col">
+      <header className="border-b px-6 py-4">
+        <div className="mx-auto flex max-w-5xl items-center justify-between">
+          <h1 className="text-xl font-semibold">Settl</h1>
+          <span className="text-sm text-muted-foreground">
+            {party.displayName}
+          </span>
+        </div>
+      </header>
+
+      <main className="mx-auto w-full max-w-5xl flex-1 space-y-8 px-6 py-8">
+        {/* Balance card */}
+        <div className="rounded-xl border bg-card p-6 shadow-sm">
+          <p className="text-sm text-muted-foreground">Your balance</p>
+          <p className="mt-1 text-3xl font-bold tracking-tight">
+            {balanceDisplay}
+          </p>
+          <Link
+            href={hasBalance ? "/freelancer/cash-out" : "#"}
+            className={`mt-4 inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground ${!hasBalance ? "pointer-events-none opacity-50" : "hover:bg-primary/90"}`}
+          >
+            Cash out
+          </Link>
+        </div>
+
+        {/* Invoices */}
+        <div>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Invoices</h2>
+            <Link
+              href="/freelancer/invoices/new"
+              className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              + New invoice
+            </Link>
+          </div>
+
+          {invoices.length === 0 ? (
+            <div className="mt-6 rounded-lg border border-dashed p-12 text-center">
+              <p className="text-muted-foreground">No invoices yet.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Create your first invoice to get started.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-4 divide-y rounded-lg border">
+              {invoices.map((inv) => (
+                <Link
+                  key={inv.id}
+                  href={`/freelancer/invoices/${inv.id}`}
+                  className="flex items-center justify-between px-6 py-4 hover:bg-muted/50 transition-colors"
+                >
+                  <div>
+                    <p className="font-medium">{inv.clientName}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formatMoney(inv.amountMinor, "USD")} →{" "}
+                      {inv.receiveCurrency}
+                    </p>
+                  </div>
+                  <StatusBadge status={inv.status} />
+                </Link>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
